@@ -14,6 +14,7 @@ from rest_framework.relations import RelatedField, HyperlinkedRelatedField, Prim
 from rest_framework.settings import api_settings
 from rest_framework.exceptions import APIException
 
+
 try:
     from rest_framework.serializers import ManyRelatedField
 except ImportError:
@@ -164,12 +165,22 @@ def build_json_resource_obj(fields, resource, resource_instance, resource_name):
     return OrderedDict(resource_data)
 
 
+def _extract_model(relation):
+    from rest_framework_json_api.relations import ResourceRelatedField
+    if isinstance(relation, ManyRelatedField):
+        if isinstance(relation.child_relation, ResourceRelatedField):
+            return getattr(relation.child_relation, 'model', None)
+    if isinstance(relation, ResourceRelatedField):
+        return getattr(relation, 'model', None)
+    return None
+
+
 def get_related_resource_type(relation):
     if hasattr(relation, '_meta'):
         relation_model = relation._meta.model
-    elif hasattr(relation, 'model'):
+    elif _extract_model(relation) is not None:
         # the model type was explicitly passed as a kwarg to ResourceRelatedField
-        relation_model = relation.model
+        relation_model = _extract_model(relation)
     elif hasattr(relation, 'get_queryset') and relation.get_queryset() is not None:
         relation_model = relation.get_queryset().model
     else:
